@@ -1,7 +1,7 @@
 """
 ===============================================================================
 BRANDING ANALYZER — Interface Streamlit
-Versão Completa com Laudo Profissional Bonito
+Versão Completa com Exportação em PDF Profissional
 ===============================================================================
 """
 
@@ -12,9 +12,6 @@ import plotly.graph_objects as go
 from datetime import datetime
 import json
 from io import BytesIO
-import docx
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from branding_analyzer import (
     calcular_score_ponderado,
@@ -34,6 +31,8 @@ from branding_analyzer import (
     obter_teoria_variavel,
     gerar_recomendacoes_palavras_chave
 )
+
+from pdf_generator import gerar_pdf
 
 st.set_page_config(
     page_title="Branding Analyzer",
@@ -159,481 +158,6 @@ def criar_grafico_trends(dados_tempo):
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
     return fig
-
-
-# ============================================================================
-# FUNÇÃO PARA GERAR DOCX PROFISSIONAL
-# ============================================================================
-
-def gerar_docx(dados):
-    """
-    Gera um documento Word PROFISSIONAL com:
-    - Capa executiva
-    - Cabeçalhos e seções coloridas
-    - Gráficos grandes e centralizados
-    - Tabelas com cores
-    - Caixas de alerta coloridas
-    - Rodapé profissional
-    """
-    from docx.oxml.ns import qn
-    from docx.oxml import OxmlElement
-    
-    doc = docx.Document()
-    
-    # ========================================================================
-    # CONFIGURAÇÃO DE ESTILOS
-    # ========================================================================
-    
-    COR_PRIMARIA = RGBColor(0x1F, 0x29, 0x37)
-    COR_SECUNDARIA = RGBColor(0x25, 0x63, 0xEB)
-    COR_SUCESSO = RGBColor(0x10, 0xB9, 0x81)
-    COR_ALERTA = RGBColor(0xF5, 0x9E, 0x0B)
-    COR_ERRO = RGBColor(0xEF, 0x44, 0x44)
-    COR_CINZA = RGBColor(0x6B, 0x72, 0x80)
-    COR_BRANCO = RGBColor(0xFF, 0xFF, 0xFF)
-    
-    # Margens da página
-    sections = doc.sections
-    for section in sections:
-        section.top_margin = Inches(0.8)
-        section.bottom_margin = Inches(0.8)
-        section.left_margin = Inches(0.9)
-        section.right_margin = Inches(0.9)
-    
-    # ========================================================================
-    # FUNÇÕES AUXILIARES
-    # ========================================================================
-    
-    def adicionar_titulo_secao(doc, numero, texto):
-        """Adiciona um título de seção com cor e numeração."""
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(12)
-        p.paragraph_format.space_after = Pt(6)
-        
-        run_num = p.add_run(f'{numero}. ')
-        run_num.bold = True
-        run_num.font.size = Pt(16)
-        run_num.font.color.rgb = COR_SECUNDARIA
-        
-        run_texto = p.add_run(texto)
-        run_texto.bold = True
-        run_texto.font.size = Pt(16)
-        run_texto.font.color.rgb = COR_PRIMARIA
-        
-        return p
-    
-    def adicionar_subtitulo(doc, texto):
-        """Adiciona um subtítulo."""
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(8)
-        p.paragraph_format.space_after = Pt(4)
-        run = p.add_run(texto)
-        run.bold = True
-        run.font.size = Pt(13)
-        run.font.color.rgb = COR_PRIMARIA
-        return p
-    
-    def adicionar_tabela_estilizada(doc, cabecalhos, dados, cores_notas=None):
-        """Adiciona uma tabela estilizada com cabeçalho colorido."""
-        table = doc.add_table(rows=1, cols=len(cabecalhos))
-        table.style = 'Light Grid Accent 1'
-        
-        hdr = table.rows[0].cells
-        for i, cabecalho in enumerate(cabecalhos):
-            hdr[i].text = ''
-            p = hdr[i].paragraphs[0]
-            run = p.add_run(cabecalho)
-            run.bold = True
-            run.font.color.rgb = COR_BRANCO
-            run.font.size = Pt(10)
-            
-            shading = OxmlElement('w:shd')
-            shading.set(qn('w:fill'), '1F2937')
-            hdr[i]._tc.get_or_add_tcPr().append(shading)
-        
-        for linha_dados in dados:
-            row = table.add_row().cells
-            for i, valor in enumerate(linha_dados):
-                row[i].text = ''
-                p = row[i].paragraphs[0]
-                run = p.add_run(str(valor))
-                run.font.size = Pt(10)
-                
-                if cores_notas and i in cores_notas:
-                    try:
-                        nota = float(valor)
-                        if nota >= 7:
-                            run.font.color.rgb = COR_SUCESSO
-                            run.bold = True
-                        elif nota >= 5:
-                            run.font.color.rgb = COR_ALERTA
-                            run.bold = True
-                        else:
-                            run.font.color.rgb = COR_ERRO
-                            run.bold = True
-                    except:
-                        pass
-        
-        return table
-    
-    # ========================================================================
-    # CAPA
-    # ========================================================================
-    
-    for _ in range(3):
-        doc.add_paragraph()
-    
-    titulo = doc.add_paragraph()
-    titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_titulo = titulo.add_run('BRANDING ANALYZER')
-    run_titulo.font.size = Pt(36)
-    run_titulo.bold = True
-    run_titulo.font.color.rgb = COR_PRIMARIA
-    
-    subtitulo = doc.add_paragraph()
-    subtitulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_sub = subtitulo.add_run('Análise Científica de Branding')
-    run_sub.font.size = Pt(18)
-    run_sub.font.color.rgb = COR_SECUNDARIA
-    run_sub.italic = True
-    
-    doc.add_paragraph()
-    
-    linha = doc.add_paragraph()
-    linha.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_linha = linha.add_run('━' * 30)
-    run_linha.font.color.rgb = COR_SECUNDARIA
-    
-    doc.add_paragraph()
-    doc.add_paragraph()
-    
-    marca = dados.get('marca', {})
-    nome_marca = marca.get('nome', 'Marca não informada')
-    
-    nome_par = doc.add_paragraph()
-    nome_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_nome = nome_par.add_run(nome_marca)
-    run_nome.font.size = Pt(28)
-    run_nome.bold = True
-    run_nome.font.color.rgb = COR_SECUNDARIA
-    
-    doc.add_paragraph()
-    doc.add_paragraph()
-    
-    score = dados.get('score', {})
-    score_valor = score.get('score_ponderado', 0)
-    classificacao = score.get('classificacao', 'N/A')
-    
-    score_par = doc.add_paragraph()
-    score_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_score = score_par.add_run(f'Score: {score_valor}/10')
-    run_score.font.size = Pt(22)
-    run_score.bold = True
-    run_score.font.color.rgb = COR_PRIMARIA
-    
-    class_par = doc.add_paragraph()
-    class_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_class = class_par.add_run(classificacao.upper())
-    run_class.font.size = Pt(16)
-    run_class.bold = True
-    
-    if score_valor >= 6.5:
-        run_class.font.color.rgb = COR_SUCESSO
-    elif score_valor >= 5:
-        run_class.font.color.rgb = COR_ALERTA
-    else:
-        run_class.font.color.rgb = COR_ERRO
-    
-    for _ in range(5):
-        doc.add_paragraph()
-    
-    data_par = doc.add_paragraph()
-    data_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_data = data_par.add_run(f'Gerado em {datetime.now().strftime("%d/%m/%Y às %H:%M")}')
-    run_data.font.size = Pt(11)
-    run_data.font.color.rgb = COR_CINZA
-    
-    rodape_capa = doc.add_paragraph()
-    rodape_capa.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_rod = rodape_capa.add_run('Baseado em Aaker, Keller, Kapferer e Ehrenberg-Bass')
-    run_rod.font.size = Pt(10)
-    run_rod.italic = True
-    run_rod.font.color.rgb = COR_CINZA
-    
-    # ========================================================================
-    # QUEBRA DE PÁGINA
-    # ========================================================================
-    doc.add_page_break()
-    
-    # ========================================================================
-    # 1. DADOS DA MARCA
-    # ========================================================================
-    adicionar_titulo_secao(doc, 1, 'Dados da Marca')
-    
-    doc.add_paragraph(f'Nome: {marca.get("nome", "Não informado")}')
-    doc.add_paragraph(f'Segmento: {marca.get("segmento", "Não informado")}')
-    doc.add_paragraph(f'Seguidores: {marca.get("seguidores", 0):,}')
-    doc.add_paragraph(f'Crescimento mensal: {marca.get("crescimento", 0)}%/mês')
-    doc.add_paragraph(f'Produtos ativos: {marca.get("produtos", 0)}')
-    doc.add_paragraph(f'Canais ativos: {marca.get("canais", 0)}')
-    doc.add_paragraph(f'Autoridade externa: {"Sim" if marca.get("autoridade") else "Não"}')
-    doc.add_paragraph(f'Arquétipo: {marca.get("arquétipo", "Não definido")}')
-    
-    doc.add_paragraph()
-    
-    # ========================================================================
-    # 2. SCORE E RÉGUA
-    # ========================================================================
-    adicionar_titulo_secao(doc, 2, 'Score Total')
-    
-    doc.add_paragraph(f'Score Simples: {score.get("score_simples", "N/A")}/10')
-    doc.add_paragraph(f'Score Ponderado: {score.get("score_ponderado", "N/A")}/10')
-    doc.add_paragraph(f'Classificação: {score.get("classificacao", "N/A")}')
-    
-    try:
-        img_regua = gerar_grafico_regua(score_valor)
-        if img_regua:
-            doc.add_picture(img_regua, width=Inches(6.5))
-            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    except:
-        pass
-    
-    doc.add_paragraph()
-    
-    # ========================================================================
-    # 3. VISUALIZAÇÃO (GRÁFICOS)
-    # ========================================================================
-    adicionar_titulo_secao(doc, 3, 'Visualização do Perfil')
-    
-    notas = dados.get('notas', {})
-    
-    adicionar_subtitulo(doc, 'Radar do Perfil')
-    try:
-        img_radar = gerar_grafico_radar(notas)
-        if img_radar:
-            doc.add_picture(img_radar, width=Inches(5.5))
-            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    except:
-        pass
-    
-    doc.add_paragraph()
-    adicionar_subtitulo(doc, 'Comparativo por Variável')
-    try:
-        img_barras = gerar_grafico_barras(notas)
-        if img_barras:
-            doc.add_picture(img_barras, width=Inches(6.5))
-            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    except:
-        pass
-    
-    doc.add_paragraph()
-    
-    # ========================================================================
-    # 4. BREAKDOWN
-    # ========================================================================
-    adicionar_titulo_secao(doc, 4, 'Detalhamento por Variável')
-    
-    cabecalhos = ['Variável', 'Código', 'Nota', 'Peso', 'Contribuição', '% do Score']
-    dados_tabela = []
-    for var, info in score.get('breakdown', {}).items():
-        dados_tabela.append([
-            var,
-            info.get('codigo', ''),
-            str(info.get('nota', 0)),
-            str(info.get('peso', 0)),
-            str(info.get('contribuicao', 0)),
-            f"{info.get('percentual', 0):.1f}%"
-        ])
-    
-    adicionar_tabela_estilizada(doc, cabecalhos, dados_tabela, cores_notas={2})
-    
-    doc.add_paragraph()
-    
-    # ========================================================================
-    # 5. CLASSIFICAÇÃO
-    # ========================================================================
-    adicionar_titulo_secao(doc, 5, 'Classificação da Marca')
-    
-    classificacao_dados = dados.get('classificacao', {})
-    doc.add_paragraph(f'Status: {classificacao_dados.get("classificacao", "N/A")}')
-    doc.add_paragraph(f'Nível: {classificacao_dados.get("nivel", "N/A")}')
-    doc.add_paragraph(f'Ação Recomendada: {classificacao_dados.get("acao_recomendada", "N/A")}')
-    
-    if classificacao_dados.get('evidencias'):
-        doc.add_paragraph()
-        adicionar_subtitulo(doc, 'Evidências Encontradas')
-        for e in classificacao_dados['evidencias']:
-            p = doc.add_paragraph(style='List Bullet')
-            p.add_run(e)
-    
-    doc.add_paragraph()
-    
-    # ========================================================================
-    # 6. RECOMENDAÇÕES COM TEORIA
-    # ========================================================================
-    doc.add_page_break()
-    adicionar_titulo_secao(doc, 6, 'Recomendações com Fundamentação Teórica')
-    
-    recomendacoes = dados.get('recomendacoes', {})
-    
-    resumo_par = doc.add_paragraph()
-    run_resumo = resumo_par.add_run(f'Resumo: {recomendacoes.get("resumo", "")}')
-    run_resumo.italic = True
-    run_resumo.font.size = Pt(11)
-    
-    doc.add_paragraph()
-    
-    def exibir_item_recomendacao(doc, item, cor_categoria):
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(10)
-        run = p.add_run(f'● {item["variavel"]} — Nota {item["nota"]}/10')
-        run.bold = True
-        run.font.size = Pt(12)
-        run.font.color.rgb = cor_categoria
-        
-        doc.add_paragraph(f'{item["recomendacao"]}', style='List Bullet')
-        
-        teoria = obter_teoria_variavel(item['variavel'])
-        if teoria:
-            p_teoria = doc.add_paragraph()
-            p_teoria.paragraph_format.left_indent = Inches(0.3)
-            run_t = p_teoria.add_run('📚 Fundamentação Teórica: ')
-            run_t.bold = True
-            run_t.italic = True
-            run_t.font.size = Pt(10)
-            run_t.font.color.rgb = COR_CINZA
-            
-            r = p_teoria.add_run(teoria['teoria'])
-            r.italic = True
-            r.font.size = Pt(10)
-            r.font.color.rgb = COR_CINZA
-            
-            p_dica = doc.add_paragraph()
-            p_dica.paragraph_format.left_indent = Inches(0.3)
-            run_d = p_dica.add_run('💡 Dica Prática: ')
-            run_d.bold = True
-            run_d.font.size = Pt(10)
-            run_d.font.color.rgb = COR_SECUNDARIA
-            p_dica.add_run(teoria['dica']).font.size = Pt(10)
-    
-    if recomendacoes.get('criticas'):
-        adicionar_subtitulo(doc, '🔴 Críticas (nota < 5) — Atenção Imediata')
-        for item in recomendacoes['criticas']:
-            exibir_item_recomendacao(doc, item, COR_ERRO)
-    
-    if recomendacoes.get('importantes'):
-        adicionar_subtitulo(doc, '🟡 Melhorar (nota 5-7)')
-        for item in recomendacoes['importantes']:
-            exibir_item_recomendacao(doc, item, COR_ALERTA)
-    
-    if recomendacoes.get('otimizacoes'):
-        adicionar_subtitulo(doc, '🟢 Otimizações (nota > 7)')
-        for item in recomendacoes['otimizacoes']:
-            exibir_item_recomendacao(doc, item, COR_SUCESSO)
-    
-    doc.add_paragraph()
-    
-    # ========================================================================
-    # 7. ARQUÉTIPO
-    # ========================================================================
-    if recomendacoes.get('arquétipo'):
-        doc.add_page_break()
-        adicionar_titulo_secao(doc, 7, 'Arquétipo Dominante')
-        
-        a = recomendacoes['arquétipo']
-        doc.add_paragraph(f'Atual: {a["atual"]}')
-        doc.add_paragraph(f'Ação: {a["acao"]}')
-        
-        dicas = dicas_arquétipo(a['atual'])
-        if dicas:
-            adicionar_subtitulo(doc, 'Diretrizes de Posicionamento')
-            doc.add_paragraph(f'🎯 Posicionamento: {dicas["posicionamento"]}')
-            doc.add_paragraph(f'📝 Conteúdo: {dicas["conteudo"]}')
-            doc.add_paragraph(f'💬 Linguagem: {dicas["linguagem"]}')
-            doc.add_paragraph(f'🎨 Visual: {dicas["visual"]}')
-            doc.add_paragraph(f'📢 CTA: {dicas["cta"]}')
-        
-        doc.add_paragraph()
-    
-    # ========================================================================
-    # 8. PALAVRAS-CHAVE (GOOGLE TRENDS)
-    # ========================================================================
-    trends_dados = dados.get('trends', {})
-    if trends_dados and trends_dados.get('sucesso'):
-        adicionar_titulo_secao(doc, 8, 'Recomendações de Palavras-Chave')
-        
-        recomendacoes_kw = gerar_recomendacoes_palavras_chave(trends_dados)
-        
-        if recomendacoes_kw['palavras_em_alta']:
-            adicionar_subtitulo(doc, '🔥 Palavras em Alta — Aproveite!')
-            for item in recomendacoes_kw['palavras_em_alta']:
-                p = doc.add_paragraph(style='List Bullet')
-                run = p.add_run(f'{item["palavra"]} ')
-                run.bold = True
-                run.font.color.rgb = COR_SUCESSO
-                p.add_run(f'(média: {item["media"]})')
-        
-        if recomendacoes_kw['palavras_em_queda']:
-            adicionar_subtitulo(doc, '📉 Palavras em Queda — Cuidado')
-            for item in recomendacoes_kw['palavras_em_queda']:
-                p = doc.add_paragraph(style='List Bullet')
-                run = p.add_run(f'{item["palavra"]} ')
-                run.bold = True
-                run.font.color.rgb = COR_ERRO
-                p.add_run(f'(média: {item["media"]})')
-        
-        if recomendacoes_kw['termos_relacionados']:
-            adicionar_subtitulo(doc, '🔍 Termos Relacionados em Alta')
-            for item in recomendacoes_kw['termos_relacionados']:
-                p = doc.add_paragraph(style='List Bullet')
-                run = p.add_run(f'{item["termo"]} ')
-                run.bold = True
-                p.add_run(f'(+{item["crescimento"]}) — relacionado a "{item["baseado_em"]}"')
-        
-        if recomendacoes_kw['sugestoes_conteudo']:
-            adicionar_subtitulo(doc, '💡 Sugestões de Conteúdo')
-            for sugestao in recomendacoes_kw['sugestoes_conteudo']:
-                doc.add_paragraph(sugestao, style='List Bullet')
-        
-        doc.add_paragraph()
-    
-    # ========================================================================
-    # RODAPÉ FINAL
-    # ========================================================================
-    doc.add_page_break()
-    
-    for _ in range(8):
-        doc.add_paragraph()
-    
-    final_par = doc.add_paragraph()
-    final_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_final = final_par.add_run('━' * 30)
-    run_final.font.color.rgb = COR_SECUNDARIA
-    
-    final_par2 = doc.add_paragraph()
-    final_par2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_final2 = final_par2.add_run('Branding Analyzer v1.0')
-    run_final2.font.size = Pt(14)
-    run_final2.bold = True
-    run_final2.font.color.rgb = COR_PRIMARIA
-    
-    final_par3 = doc.add_paragraph()
-    final_par3.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_final3 = final_par3.add_run('Baseado em Aaker, Keller, Kapferer e Ehrenberg-Bass')
-    run_final3.font.size = Pt(11)
-    run_final3.italic = True
-    run_final3.font.color.rgb = COR_CINZA
-    
-    final_par4 = doc.add_paragraph()
-    final_par4.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_final4 = final_par4.add_run(f'© {datetime.now().year} — Todos os direitos reservados')
-    run_final4.font.size = Pt(10)
-    run_final4.font.color.rgb = COR_CINZA
-    
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer
 
 
 # ============================================================================
@@ -1292,6 +816,7 @@ if not analisar:
     - Faça upload de **múltiplos arquivos** `.txt` com bio, transcrições, datas e comentários
     - Relatório completo com **gráficos** e **fundamentação teórica**
     - **Recomendações de palavras-chave** baseadas no Google Trends
+    - **Laudo em PDF profissional**
     """)
 
     st.subheader("📈 Google Trends — Análise de Mercado")
@@ -1608,9 +1133,14 @@ else:
                 **📢 CTA:** {dicas['cta']}
                 """)
 
+    # ========================================================================
+    # EXPORTAÇÃO EM PDF
+    # ========================================================================
+    
     st.markdown("---")
     st.subheader("📥 Exportar Laudo")
-
+    
+    # Preparar dados para o PDF
     dados_export = {
         'marca': {
             'nome': nome_marca,
@@ -1626,32 +1156,31 @@ else:
         'score': resultado_score,
         'classificacao': resultado_classificacao,
         'recomendacoes': recomendacoes,
-        'analises_objetivas': {
-            'v2': st.session_state.get('v2_analise', {}),
-            'v3': st.session_state.get('v3_analise', {}),
-            'v4': st.session_state.get('v4_analise', {}),
-            'v5': st.session_state.get('v5_analise', {})
-        },
         'trends': st.session_state.get('trends_resultado_principal', {}) or st.session_state.get('trends_resultado_resultados', {}),
-        'data_analise': datetime.now().isoformat()
+        'teorias': {f'V{i}': obter_teoria_variavel(f'V{i}') for i in range(1, 8)},
+        'grafico_regua': gerar_grafico_regua(score),
+        'grafico_radar': gerar_grafico_radar(notas),
+        'grafico_barras': gerar_grafico_barras(notas),
     }
-
-    col1, col2, col3 = st.columns(3)
-
+    
+    # Adicionar recomendações de palavras-chave
+    trends_dados = dados_export['trends']
+    if trends_dados and trends_dados.get('sucesso'):
+        dados_export['recomendacoes_kw'] = gerar_recomendacoes_palavras_chave(trends_dados)
+    
+    col1, col2 = st.columns(2)
+    
     with col1:
         st.download_button(
-            label="📄 Baixar Word (.docx)",
-            data=gerar_docx(dados_export),
-            file_name=f"laudo_{nome_marca or 'marca'}_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            label="📄 Baixar Laudo em PDF",
+            data=gerar_pdf(dados_export),
+            file_name=f"laudo_{nome_marca or 'marca'}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+            mime="application/pdf",
             use_container_width=True
         )
-
+    
     with col2:
-        st.info("📊 Em breve: Excel")
-
-    with col3:
-        st.info("📝 Em breve: Markdown")
+        st.info("📊 O PDF contém gráficos e branding profissional")
 
 
 st.markdown("---")
